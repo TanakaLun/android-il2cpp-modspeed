@@ -1,0 +1,42 @@
+name: Debug APK Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: ⬇️ Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 🛠️ Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: 💻 Set up Android SDK and NDK
+      uses: android-actions/setup-android@v3
+
+    - name: ⚙️ Grant execute permission to gradlew
+      run: chmod +x gradlew
+
+    - name: 🏗️ Build Debug APK
+      run: ./gradlew assembleDebug
+
+    - name: 📦 Find APK file
+      id: find_apk
+      run: |
+        APK_PATH=$(find ${{ github.workspace }}/app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+        echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+        echo "Found APK at: $APK_PATH"
+
+    - name: 📤 Upload Debug APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-apk-native
+        path: ${{ steps.find_apk.outputs.apk_path }}
+        retention-days: 7
