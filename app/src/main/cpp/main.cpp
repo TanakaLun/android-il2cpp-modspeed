@@ -6,10 +6,10 @@
 #include "dobby.h"
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
-#include "imgui.h"
-#include "imgui_internal.h"
-#include "backends/imgui_impl_opengl3.h"
-#include "backends/imgui_impl_android.h"
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_internal.h"
+#include "ImGui/backends/imgui_impl_opengl3.h"
+#include "ImGui/backends/imgui_impl_android.h"
 
 
 
