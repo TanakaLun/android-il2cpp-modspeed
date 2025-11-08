@@ -31,14 +31,14 @@ set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
 
 include_directories(${SOURCE_PATH})
 include_directories(include)
-include_directories(ImGui)
-include_directories(ImGui/backends)
+include_directories(imgui)
+include_directories(imgui/backends)
 
 
 
 aux_source_directory(xDL xdl-src)
-aux_source_directory(ImGui ImGui-src)
-aux_source_directory(ImGui/backends backends-src)
+aux_source_directory(imgui ImGui-src)
+aux_source_directory(imgui/backends backends-src)
 
 
 add_library(${PROJECT_NAME} SHARED main.cpp
@@ -56,5 +56,5 @@ target_link_libraries(${PROJECT_NAME} log EGL GLESv3 android ${DOBBY_LIB})
 
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_STRIP} --strip-all --remove-section=.comment "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${PROJECT_NAME}.so")
+            COMMAND ${CMAKE_STRIP} --strip-all --remove-section=.comment "./lib${PROJECT_NAME}.so")
 endif ()
