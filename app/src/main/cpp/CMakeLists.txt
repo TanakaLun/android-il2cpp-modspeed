@@ -6,7 +6,6 @@ set(SOURCE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
-
 message("Build type: ${CMAKE_BUILD_TYPE}")
 
 set(CMAKE_CXX_STANDARD 20)
@@ -31,28 +30,17 @@ set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
 
 include_directories(${SOURCE_PATH})
 include_directories(include)
-include_directories(imgui)
-include_directories(imgui/backends)
-
-
 
 aux_source_directory(xDL xdl-src)
-aux_source_directory(imgui ImGui-src)
-aux_source_directory(imgui/backends backends-src)
 
-
-add_library(${PROJECT_NAME} SHARED main.cpp
+add_library(${PROJECT_NAME} SHARED 
+        main.cpp
         ${xdl-src}
-        ${ImGui-src}
-        ${backends-src}
-         )
-
+        )
 
 set(DOBBY_LIB ${CMAKE_CURRENT_SOURCE_DIR}/Dobby/${CMAKE_ANDROID_ARCH_ABI}/libdobby.a)
-target_link_libraries(${PROJECT_NAME} log EGL GLESv3 android ${DOBBY_LIB})
 
-
-
+target_link_libraries(${PROJECT_NAME} log android ${DOBBY_LIB})
 
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

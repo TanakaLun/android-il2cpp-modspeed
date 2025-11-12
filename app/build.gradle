@@ -13,7 +13,7 @@ android {
         versionCode 1
         versionName "1.0"
         ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86'
+            abiFilters 'arm64-v8a'
         }
     }
 
@@ -26,9 +26,9 @@ android {
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"
-            version "3.18.1"
+            // version "3.18.1"
         }
-        ndkVersion '24.0.8215888'
+        // ndkVersion '24.0.8215888'
     }
     compileOptions {
 		sourceCompatibility JavaVersion.VERSION_11

@@ -1,103 +1,92 @@
 #include <jni.h>
 #include <thread>
 #include <unistd.h>
+#include <string>
+#include <vector>
 #include "log.h"
 #include "xdl.h"
 #include "dobby.h"
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-#include "imgui/imgui.h"
-#include "imgui/imgui_internal.h"
-#include "imgui/backends/imgui_impl_opengl3.h"
-#include "imgui/backends/imgui_impl_android.h"
 
-
-
-int glHeight, glWidth;
-bool setupimg;
-static float timeScale = 1.00f;
+static float g_timeScale = 1.00f;
 void*(*il2cpp_resolve_icall)(const char *) = nullptr;
 
-
 void(*_set_timeScale)(float);
-void set_timeScale(float Time)
-{
-    Time = timeScale;
-    _set_timeScale(Time);
-}
-void (*origInput)(void*,void*,void*) = nullptr;
-void Input(void *thiz, void *ex_ab, void *ex_ac) {
-    origInput(thiz, ex_ab, ex_ac);
-    ImGui_ImplAndroid_HandleInputEvent((AInputEvent *)thiz);
-    return;
+void set_timeScale(float Time) {
+    LOGD("Native: Setting timeScale to %.2f (original: %.2f)", g_timeScale, Time);
+    _set_timeScale(g_timeScale);
 }
 
-void SetupImgui() {
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    io.DisplaySize = ImVec2((float) glWidth, (float) glHeight);
-    ImGui_ImplOpenGL3_Init("#version 100");
-    ImGui::StyleColorsLight();
+extern "C" {
 
-    ImGui::GetStyle().ScaleAllSizes(3.0f);
+JNIEXPORT void JNICALL
+Java_com_example_testxp_Main_setTimeScale(JNIEnv *env, jclass clazz, jfloat scale) {
+    g_timeScale = scale;
+    LOGD("Native: TimeScale updated to %.2f", g_timeScale);
 }
 
-EGLBoolean (*old_eglSwapBuffers)(EGLDisplay dpy, EGLSurface surface);
-EGLBoolean hook_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
-    eglQuerySurface(dpy, surface, EGL_WIDTH, &glWidth);
-    eglQuerySurface(dpy, surface, EGL_HEIGHT, &glHeight);
+}
 
-    if (!setupimg) {
-        SetupImgui();
-        setupimg = true;
+void* find_unity_time_method() {
+    if (!il2cpp_resolve_icall) {
+        return nullptr;
     }
-
-    ImGuiIO &io = ImGui::GetIO();
-
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui::NewFrame();
-
-
-    ImGui::Begin("test!");
-    ImGui::SetWindowSize(ImVec2(800, 500));
-    if (ImGui::SliderFloat("Speed", &timeScale, 1.00f, 10.00f)) {
-        _set_timeScale(timeScale);
+    
+    // 尝试多个可能的函数签名
+    std::vector<const char*> method_names = {
+        "UnityEngine.Time::set_timeScale(System.Single)",
+        "UnityEngine.Time::set_timeScale",
+        "Time::set_timeScale",
+    };
+    
+    for (const char* name : method_names) {
+        void* method = il2cpp_resolve_icall(name);
+        if (method) {
+            LOGD("Native: Found Unity method %s at %p", name, method);
+            return method;
+        }
     }
-    ImGui::End();
-
-
-    ImGui::EndFrame();
-    ImGui::Render();
-    glViewport(0, 0, (int) io.DisplaySize.x, (int) io.DisplaySize.y);
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    return old_eglSwapBuffers(dpy, surface);
+    
+    return nullptr;
 }
-
 
 void hack_thread() {
-    sleep(3);
-    LOGD("Hack App Done!!! %d", getpid());
-
-    auto handle = xdl_open("libil2cpp.so", 0);
-    LOGD("Handle %p", handle);
-    il2cpp_resolve_icall = (void *(*)(const char *)) xdl_sym(handle, "il2cpp_resolve_icall",
-                                                             nullptr);
-    LOGD("il2cpp_resolve_icall %p", il2cpp_resolve_icall);
-    auto TimeHack = il2cpp_resolve_icall("UnityEngine.Time::set_timeScale(System.Single)");
-    LOGD("TimeHack %p", TimeHack);
-    DobbyHook(TimeHack, (dobby_dummy_func_t) set_timeScale, (dobby_dummy_func_t *) &_set_timeScale);
-
-
-    auto eglSwapBuffers = dlsym(nullptr, "eglSwapBuffers");
-    DobbyHook((void*)eglSwapBuffers,(dobby_dummy_func_t)hook_eglSwapBuffers,
-              (dobby_dummy_func_t*)&old_eglSwapBuffers);
-    auto sym_input = xdl_sym(xdl_open("libinput.so",0), "_ZN7android13InputConsumer21initializeMotionEventEPNS_11MotionEventEPKNS_12InputMessageE",nullptr);
-    if (NULL != sym_input) {
-        DobbyHook(sym_input,(dobby_dummy_func_t)Input,(dobby_dummy_func_t*)&origInput);
+    sleep(8); // 等待系统稳定
+    
+    LOGD("Native: Starting universal hack in process %d", getpid());
+    
+    // 尝试加载libil2cpp.so
+    auto il2cpp_handle = xdl_open("libil2cpp.so", XDL_TRY_FORCE_LOAD);
+    if (!il2cpp_handle) {
+        LOGD("Native: No libil2cpp.so found, this may not be a Unity app");
+        return;
+    }
+    
+    LOGD("Native: libil2cpp.so loaded at %p", il2cpp_handle);
+    
+    // 获取il2cpp_resolve_icall函数
+    il2cpp_resolve_icall = (void*(*)(const char*))xdl_sym(il2cpp_handle, "il2cpp_resolve_icall", nullptr);
+    if (!il2cpp_resolve_icall) {
+        LOGD("Native: Failed to find il2cpp_resolve_icall");
+        return;
+    }
+    
+    LOGD("Native: il2cpp_resolve_icall found at %p", il2cpp_resolve_icall);
+    
+    // 查找并Hook Unity时间方法
+    void* time_method = find_unity_time_method();
+    if (time_method) {
+        if (DobbyHook(time_method, (void*)set_timeScale, (void**)&_set_timeScale) == 0) {
+            LOGD("Native: Successfully hooked Unity Time method");
+        } else {
+            LOGD("Native: Failed to hook Unity Time method");
+        }
+    } else {
+        LOGD("Native: No Unity Time method found, this may not be a Unity app or uses different method names");
     }
 }
+
 __attribute__((constructor))
 void lib_main() {
+    // 直接启动hack线程，不依赖任何条件
     std::thread(hack_thread).detach();
 }
