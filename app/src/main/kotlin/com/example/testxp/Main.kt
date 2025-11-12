@@ -27,27 +27,23 @@ class Main : IXposedHookLoadPackage {
     private var windowManager: WindowManager? = null
 
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
-        // 移除了包名判断，对所有APP生效
         XposedBridge.log("Yuri: Loading for package: ${lpparam.packageName}")
         
         try {
-            // 直接尝试显示悬浮窗，不依赖Activity Hook
             showFloatingWindowOnStart()
-            
         } catch (e: Throwable) {
             XposedBridge.log("Yuri Init Error: ${e.message}")
         }
     }
     
-    @SuppressLint("PrivateApi")
+    @SuppressLint("PrivateApi", "DiscouragedPrivateApi")
     private fun showFloatingWindowOnStart() {
         try {
-            // 通过系统服务获取Context来创建悬浮窗
             val activityThreadClass = Class.forName("android.app.ActivityThread")
-            val currentActivityThreadMethod = activityThreadClass.getMethod("currentActivityThread")
+            val currentActivityThreadMethod = activityThreadClass.getDeclaredMethod("currentActivityThread")
             val activityThread = currentActivityThreadMethod.invoke(null)
             
-            val getSystemContextMethod = activityThreadClass.getMethod("getSystemContext")
+            val getSystemContextMethod = activityThreadClass.getDeclaredMethod("getSystemContext")
             val context = getSystemContextMethod.invoke(activityThread) as Context
             
             createFloatingWindow(context)
@@ -64,7 +60,6 @@ class Main : IXposedHookLoadPackage {
         try {
             windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
-            // 纯代码创建悬浮窗
             val floatingView = object : View(context) {
                 private val paint = Paint().apply {
                     color = 0xCC1A1A1A.toInt()
@@ -93,9 +88,23 @@ class Main : IXposedHookLoadPackage {
                     textSize = 30f
                     isAntiAlias = true
                 }
+                private val progressPaint = Paint().apply {
+                    color = 0xFF4CAF50.toInt()
+                    style = Paint.Style.FILL
+                    isAntiAlias = true
+                }
+                private val backgroundPaint = Paint().apply {
+                    color = 0x55666666.toInt()
+                    style = Paint.Style.FILL
+                    isAntiAlias = true
+                }
+                private val closeButtonPaint = Paint().apply {
+                    color = Color.WHITE
+                    style = Paint.Style.STROKE
+                    strokeWidth = 3f
+                    isAntiAlias = true
+                }
                 
-                private var dragX = 0f
-                private var dragY = 0f
                 private var lastX = 0f
                 private var lastY = 0f
                 private var isDragging = false
@@ -115,23 +124,19 @@ class Main : IXposedHookLoadPackage {
                     canvas.drawText("Speed: ${"%.2f".format(timeScale)}x", 24f, 120f, smallTextPaint)
                     
                     // 绘制滑条背景
-                    canvas.drawRect(24f, 150f, (width - 24).toFloat(), 180f, 
-                        hintTextPaint.apply { color = 0x55666666.toInt() })
+                    canvas.drawRect(24f, 150f, (width - 24).toFloat(), 180f, backgroundPaint)
                     
                     // 绘制滑条进度
                     val progressWidth = ((width - 48) * ((timeScale - 1) / 9)).toFloat()
-                    canvas.drawRect(24f, 150f, 24f + progressWidth, 180f, 
-                        hintTextPaint.apply { color = 0xFF4CAF50.toInt() })
+                    canvas.drawRect(24f, 150f, 24f + progressWidth, 180f, progressPaint)
                     
                     // 绘制刻度文本
                     canvas.drawText("1x", 24f, 230f, hintTextPaint)
                     canvas.drawText("10x", (width - 60).toFloat(), 230f, hintTextPaint)
                     
                     // 绘制关闭按钮
-                    canvas.drawLine((width - 40).toFloat(), 20f, (width - 20).toFloat(), 40f, 
-                        strokePaint.apply { color = Color.WHITE; strokeWidth = 3f })
-                    canvas.drawLine((width - 20).toFloat(), 20f, (width - 40).toFloat(), 40f, 
-                        strokePaint.apply { color = Color.WHITE; strokeWidth = 3f })
+                    canvas.drawLine((width - 40).toFloat(), 20f, (width - 20).toFloat(), 40f, closeButtonPaint)
+                    canvas.drawLine((width - 20).toFloat(), 20f, (width - 40).toFloat(), 40f, closeButtonPaint)
                 }
                 
                 override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -174,7 +179,7 @@ class Main : IXposedHookLoadPackage {
                             }
                         }
                         
-                        MotionEvent.ACTION_UP -> {
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                             isDragging = false
                         }
                     }
@@ -196,18 +201,19 @@ class Main : IXposedHookLoadPackage {
                 }
             }
             
-            // 设置布局参数
-            val params = WindowManager.LayoutParams().apply {
-                width = 600
-                height = 280
-                type = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            // 设置布局参数 - 这里修复了类型推断问题
+            val params = WindowManager.LayoutParams(
+                600, // width
+                280, // height
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 } else {
                     WindowManager.LayoutParams.TYPE_PHONE
-                }
-                format = PixelFormat.TRANSLUCENT
-                flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                },
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT
+            ).apply {
                 gravity = Gravity.TOP or Gravity.START
                 x = 100
                 y = 300
@@ -225,8 +231,8 @@ class Main : IXposedHookLoadPackage {
     
     private fun removeFloatingWindow() {
         try {
-            floatingView?.let {
-                windowManager?.removeView(it)
+            floatingView?.let { view ->
+                windowManager?.removeView(view)
                 floatingView = null
             }
         } catch (e: Exception) {
