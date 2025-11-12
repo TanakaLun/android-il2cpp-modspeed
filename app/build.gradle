@@ -1,6 +1,6 @@
 plugins {
     id 'com.android.application'
-    id 'kotlin-android'
+    // id 'kotlin-android'
 }
 
 android {
@@ -27,9 +27,9 @@ android {
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"
-            // version "3.18.1"
+            version "3.18.1"
         }
-        // ndkVersion '24.0.8215888'
+        ndkVersion '24.0.8215888'
     }
     compileOptions {
 		sourceCompatibility JavaVersion.VERSION_11
