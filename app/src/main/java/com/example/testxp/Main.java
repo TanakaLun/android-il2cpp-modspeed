@@ -258,6 +258,21 @@ public class Main implements IXposedHookLoadPackage {
         speedText.setLayoutParams(textParams);
         parent.addView(speedText);
         
+        // 添加当前值显示（先创建，以便在监听器中使用）
+        final TextView currentValueText = new TextView(context);
+        currentValueText.setText("Current: " + timeScale + "x");
+        currentValueText.setTextColor(0xFF4CAF50);
+        currentValueText.setTextSize(16);
+        currentValueText.setGravity(Gravity.CENTER);
+        
+        LinearLayout.LayoutParams currentParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        currentParams.bottomMargin = dpToPx(context, 24);
+        currentValueText.setLayoutParams(currentParams);
+        parent.addView(currentValueText);
+        
         // 滑条容器
         LinearLayout sliderContainer = new LinearLayout(context);
         sliderContainer.setOrientation(LinearLayout.HORIZONTAL);
@@ -334,21 +349,6 @@ public class Main implements IXposedHookLoadPackage {
         sliderContainer.addView(seekBar);
         sliderContainer.addView(maxLabel);
         parent.addView(sliderContainer);
-        
-        // 添加当前值显示
-        final TextView currentValueText = new TextView(context);
-        currentValueText.setText("Current: " + timeScale + "x");
-        currentValueText.setTextColor(0xFF4CAF50);
-        currentValueText.setTextSize(16);
-        currentValueText.setGravity(Gravity.CENTER);
-        
-        LinearLayout.LayoutParams currentParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        currentParams.bottomMargin = dpToPx(context, 24);
-        currentValueText.setLayoutParams(currentParams);
-        parent.addView(currentValueText);
         
         // 保存引用以便预设按钮使用
         final SeekBar finalSeekBar = seekBar;
