@@ -29,7 +29,7 @@ public class Main implements IXposedHookLoadPackage {
         System.loadLibrary("Yuri");
     }
     
-    // 添加一个新的native方法来强制更新时间倍率
+    // Native方法
     public static native void setTimeScale(float scale);
     public static native void updateTimeScaleImmediately();
     
@@ -145,7 +145,7 @@ public class Main implements IXposedHookLoadPackage {
             // 创建内容区域
             createContentArea(context, mainLayout);
             
-            // 设置触摸监听实现拖动
+            // 设置触摸监听实现拖动 - 整个悬浮窗都可以拖动
             setupTouchListener(mainLayout, layoutParams);
             
             floatingView = mainLayout;
@@ -167,15 +167,15 @@ public class Main implements IXposedHookLoadPackage {
         
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            dpToPx(context, 60)
+            dpToPx(context, 50)
         );
         titleBar.setLayoutParams(titleParams);
         
         // 标题文本
         TextView titleText = new TextView(context);
-        titleText.setText("Time Controller");
+        titleText.setText("时制域倍率");
         titleText.setTextColor(Color.WHITE);
-        titleText.setTextSize(18);
+        titleText.setTextSize(16);
         titleText.setTypeface(Typeface.DEFAULT_BOLD);
         
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
@@ -184,17 +184,17 @@ public class Main implements IXposedHookLoadPackage {
             1.0f
         );
         textParams.gravity = Gravity.CENTER_VERTICAL;
-        textParams.leftMargin = dpToPx(context, 16);
+        textParams.leftMargin = dpToPx(context, 12);
         titleText.setLayoutParams(textParams);
         
         // 关闭按钮
         TextView closeButton = new TextView(context);
         closeButton.setText("×");
         closeButton.setTextColor(Color.WHITE);
-        closeButton.setTextSize(24);
+        closeButton.setTextSize(20);
         
         LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
-            dpToPx(context, 60),
+            dpToPx(context, 50),
             LinearLayout.LayoutParams.MATCH_PARENT
         );
         closeButton.setLayoutParams(closeParams);
@@ -226,17 +226,14 @@ public class Main implements IXposedHookLoadPackage {
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setPadding(
             dpToPx(context, 16),
+            dpToPx(context, 12),
             dpToPx(context, 16),
-            dpToPx(context, 16),
-            dpToPx(context, 16)
+            dpToPx(context, 12)
         );
         scrollView.addView(contentLayout);
         
         // 添加时间倍率控制
         createTimeScaleControl(context, contentLayout);
-        
-        // 添加其他控制项
-        createAdditionalControls(context, contentLayout);
         
         parent.addView(scrollView);
     }
@@ -246,7 +243,7 @@ public class Main implements IXposedHookLoadPackage {
         final TextView speedText = new TextView(context);
         speedText.setText("Speed: " + timeScale + "x");
         speedText.setTextColor(Color.WHITE);
-        speedText.setTextSize(18);
+        speedText.setTextSize(16);
         speedText.setGravity(Gravity.CENTER);
         
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
@@ -254,24 +251,9 @@ public class Main implements IXposedHookLoadPackage {
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
         textParams.topMargin = dpToPx(context, 8);
-        textParams.bottomMargin = dpToPx(context, 16);
+        textParams.bottomMargin = dpToPx(context, 12);
         speedText.setLayoutParams(textParams);
         parent.addView(speedText);
-        
-        // 添加当前值显示（先创建，以便在监听器中使用）
-        final TextView currentValueText = new TextView(context);
-        currentValueText.setText("Current: " + timeScale + "x");
-        currentValueText.setTextColor(0xFF4CAF50);
-        currentValueText.setTextSize(16);
-        currentValueText.setGravity(Gravity.CENTER);
-        
-        LinearLayout.LayoutParams currentParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        currentParams.bottomMargin = dpToPx(context, 24);
-        currentValueText.setLayoutParams(currentParams);
-        parent.addView(currentValueText);
         
         // 滑条容器
         LinearLayout sliderContainer = new LinearLayout(context);
@@ -281,14 +263,14 @@ public class Main implements IXposedHookLoadPackage {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        containerParams.bottomMargin = dpToPx(context, 24);
+        containerParams.bottomMargin = dpToPx(context, 16);
         sliderContainer.setLayoutParams(containerParams);
         
         // 最小值标签
         TextView minLabel = new TextView(context);
         minLabel.setText("1x");
         minLabel.setTextColor(0xFFCCCCCC);
-        minLabel.setTextSize(14);
+        minLabel.setTextSize(12);
         
         LinearLayout.LayoutParams minParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -304,8 +286,8 @@ public class Main implements IXposedHookLoadPackage {
             LinearLayout.LayoutParams.WRAP_CONTENT,
             1.0f
         );
-        seekParams.leftMargin = dpToPx(context, 12);
-        seekParams.rightMargin = dpToPx(context, 12);
+        seekParams.leftMargin = dpToPx(context, 8);
+        seekParams.rightMargin = dpToPx(context, 8);
         seekBar.setLayoutParams(seekParams);
         
         // 设置滑条范围：1-10，共10个整数档位
@@ -319,7 +301,6 @@ public class Main implements IXposedHookLoadPackage {
                     // 进度直接对应1-10的整数
                     timeScale = progress + 1;
                     speedText.setText("Speed: " + timeScale + "x");
-                    currentValueText.setText("Current: " + timeScale + "x");
                     
                     // 立即应用时间倍率修改
                     applyTimeScaleImmediately();
@@ -337,7 +318,7 @@ public class Main implements IXposedHookLoadPackage {
         TextView maxLabel = new TextView(context);
         maxLabel.setText("10x");
         maxLabel.setTextColor(0xFFCCCCCC);
-        maxLabel.setTextSize(14);
+        maxLabel.setTextSize(12);
         
         LinearLayout.LayoutParams maxParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -349,103 +330,6 @@ public class Main implements IXposedHookLoadPackage {
         sliderContainer.addView(seekBar);
         sliderContainer.addView(maxLabel);
         parent.addView(sliderContainer);
-        
-        // 保存引用以便预设按钮使用
-        final SeekBar finalSeekBar = seekBar;
-        
-        // 添加预设按钮区域
-        LinearLayout presetContainer = new LinearLayout(context);
-        presetContainer.setOrientation(LinearLayout.HORIZONTAL);
-        
-        LinearLayout.LayoutParams presetParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        presetParams.bottomMargin = dpToPx(context, 16);
-        presetContainer.setLayoutParams(presetParams);
-        
-        // 添加预设按钮
-        String[] presetValues = {"1x", "2x", "5x", "10x"};
-        int[] presetScales = {1, 2, 5, 10};
-        
-        for (int i = 0; i < presetValues.length; i++) {
-            TextView presetButton = new TextView(context);
-            final int presetScale = presetScales[i];
-            
-            presetButton.setText(presetValues[i]);
-            presetButton.setTextColor(Color.WHITE);
-            presetButton.setTextSize(14);
-            presetButton.setGravity(Gravity.CENTER);
-            presetButton.setBackgroundColor(0xFF4CAF50);
-            presetButton.setPadding(
-                dpToPx(context, 12),
-                dpToPx(context, 8),
-                dpToPx(context, 12),
-                dpToPx(context, 8)
-            );
-            
-            LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1.0f
-            );
-            if (i > 0) {
-                buttonParams.leftMargin = dpToPx(context, 8);
-            }
-            presetButton.setLayoutParams(buttonParams);
-            
-            presetButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    timeScale = presetScale;
-                    // 更新滑条进度
-                    finalSeekBar.setProgress(timeScale - 1);
-                    // 更新显示文本
-                    speedText.setText("Speed: " + timeScale + "x");
-                    currentValueText.setText("Current: " + timeScale + "x");
-                    // 立即应用时间倍率修改
-                    applyTimeScaleImmediately();
-                    XposedBridge.log("Yuri: Speed set to " + timeScale + "x");
-                }
-            });
-            
-            presetContainer.addView(presetButton);
-        }
-        
-        parent.addView(presetContainer);
-    }
-    
-    private void createAdditionalControls(Context context, LinearLayout parent) {
-        // 添加分隔线
-        View divider = new View(context);
-        divider.setBackgroundColor(0x55666666);
-        
-        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dpToPx(context, 1)
-        );
-        dividerParams.bottomMargin = dpToPx(context, 16);
-        divider.setLayoutParams(dividerParams);
-        parent.addView(divider);
-        
-        // 添加说明文本
-        TextView infoText = new TextView(context);
-        infoText.setText("Speed Hack Control\n\nAdjust the game speed using the slider above. " +
-                        "Only integer values from 1 to 10 are accepted.\n\n" +
-                        "Changes take effect immediately.");
-        infoText.setTextColor(0xFFCCCCCC);
-        infoText.setTextSize(14);
-        infoText.setGravity(Gravity.CENTER);
-        infoText.setLineSpacing(dpToPx(context, 4), 1.0f);
-        
-        LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        infoParams.bottomMargin = dpToPx(context, 16);
-        infoText.setLayoutParams(infoParams);
-        
-        parent.addView(infoText);
     }
     
     // 立即应用时间倍率修改
@@ -467,6 +351,9 @@ public class Main implements IXposedHookLoadPackage {
         view.setOnTouchListener(new View.OnTouchListener() {
             private int initialX, initialY;
             private float initialTouchX, initialTouchY;
+            private boolean isDragging = false;
+            private long pressStartTime = 0;
+            private static final long LONG_PRESS_THRESHOLD = 300; // 长按阈值300毫秒
             
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -476,18 +363,36 @@ public class Main implements IXposedHookLoadPackage {
                         initialY = params.topMargin;
                         initialTouchX = event.getRawX();
                         initialTouchY = event.getRawY();
-                        return true;
+                        pressStartTime = System.currentTimeMillis();
+                        isDragging = false;
+                        return true; // 返回true表示我们想处理后续事件
                         
                     case MotionEvent.ACTION_MOVE:
-                        params.leftMargin = initialX + (int)(event.getRawX() - initialTouchX);
-                        params.topMargin = initialY + (int)(event.getRawY() - initialTouchY);
+                        long currentTime = System.currentTimeMillis();
                         
-                        // 限制在屏幕范围内
-                        params.leftMargin = Math.max(0, Math.min(screenWidth - view.getWidth(), params.leftMargin));
-                        params.topMargin = Math.max(0, Math.min(screenHeight - view.getHeight(), params.topMargin));
+                        // 检查是否达到长按时间阈值
+                        if (!isDragging && (currentTime - pressStartTime) >= LONG_PRESS_THRESHOLD) {
+                            isDragging = true;
+                        }
                         
-                        hostDecorView.updateViewLayout(view, params);
-                        return true;
+                        if (isDragging) {
+                            params.leftMargin = initialX + (int)(event.getRawX() - initialTouchX);
+                            params.topMargin = initialY + (int)(event.getRawY() - initialTouchY);
+                            
+                            // 限制在屏幕范围内
+                            params.leftMargin = Math.max(0, Math.min(screenWidth - view.getWidth(), params.leftMargin));
+                            params.topMargin = Math.max(0, Math.min(screenHeight - view.getHeight(), params.topMargin));
+                            
+                            hostDecorView.updateViewLayout(view, params);
+                            return true;
+                        }
+                        break;
+                        
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        isDragging = false;
+                        pressStartTime = 0;
+                        break;
                 }
                 return false;
             }

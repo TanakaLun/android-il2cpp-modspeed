@@ -47,8 +47,7 @@ void* find_unity_time_method() {
     if (!il2cpp_resolve_icall) {
         return nullptr;
     }
-    
-    // 尝试多个可能的函数签名
+
     std::vector<const char*> method_names = {
         "UnityEngine.Time::set_timeScale(System.Single)",
         "UnityEngine.Time::set_timeScale",
