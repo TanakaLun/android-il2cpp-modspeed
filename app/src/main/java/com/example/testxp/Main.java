@@ -30,7 +30,7 @@ public class Main implements IXposedHookLoadPackage {
     
     public static native void setTimeScale(float scale);
     
-    private float timeScale = 1.0f;
+    private int timeScale = 1; // 设为整数
     private View floatingView = null;
     private FrameLayout hostDecorView = null;
     private int screenWidth = 0;
@@ -116,9 +116,9 @@ public class Main implements IXposedHookLoadPackage {
         if (floatingView != null) return;
         
         try {
-            // 计算悬浮窗尺寸 - 横屏宽度的1/3
+            // 计算悬浮窗尺寸 - 横屏宽度的1/3，高度的1/2
             final int floatingWidth = screenWidth / 3;
-            final int floatingHeight = 400; // 增加高度以容纳更多控件
+            final int floatingHeight = screenHeight / 2; // 增加为屏幕高度的一半
             
             // 创建主容器
             LinearLayout mainLayout = new LinearLayout(context);
@@ -221,6 +221,12 @@ public class Main implements IXposedHookLoadPackage {
         // 内容容器
         LinearLayout contentLayout = new LinearLayout(context);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setPadding(
+            dpToPx(context, 16),
+            dpToPx(context, 16),
+            dpToPx(context, 16),
+            dpToPx(context, 16)
+        );
         scrollView.addView(contentLayout);
         
         // 添加时间倍率控制
@@ -234,18 +240,18 @@ public class Main implements IXposedHookLoadPackage {
     
     private void createTimeScaleControl(Context context, LinearLayout parent) {
         // 速度显示
-        TextView speedText = new TextView(context);
-        speedText.setText("Speed: " + String.format("%.2f", timeScale) + "x");
+        final TextView speedText = new TextView(context);
+        speedText.setText("Speed: " + timeScale + "x");
         speedText.setTextColor(Color.WHITE);
-        speedText.setTextSize(16);
+        speedText.setTextSize(18);
         speedText.setGravity(Gravity.CENTER);
         
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        textParams.topMargin = dpToPx(context, 16);
-        textParams.bottomMargin = dpToPx(context, 8);
+        textParams.topMargin = dpToPx(context, 8);
+        textParams.bottomMargin = dpToPx(context, 16);
         speedText.setLayoutParams(textParams);
         parent.addView(speedText);
         
@@ -257,16 +263,14 @@ public class Main implements IXposedHookLoadPackage {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        containerParams.leftMargin = dpToPx(context, 16);
-        containerParams.rightMargin = dpToPx(context, 16);
-        containerParams.bottomMargin = dpToPx(context, 16);
+        containerParams.bottomMargin = dpToPx(context, 24);
         sliderContainer.setLayoutParams(containerParams);
         
         // 最小值标签
         TextView minLabel = new TextView(context);
         minLabel.setText("1x");
         minLabel.setTextColor(0xFFCCCCCC);
-        minLabel.setTextSize(12);
+        minLabel.setTextSize(14);
         
         LinearLayout.LayoutParams minParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -274,7 +278,7 @@ public class Main implements IXposedHookLoadPackage {
         );
         minLabel.setLayoutParams(minParams);
         
-        // 滑条
+        // 滑条 - 只接受1-10的整数
         SeekBar seekBar = new SeekBar(context);
         
         LinearLayout.LayoutParams seekParams = new LinearLayout.LayoutParams(
@@ -282,20 +286,22 @@ public class Main implements IXposedHookLoadPackage {
             LinearLayout.LayoutParams.WRAP_CONTENT,
             1.0f
         );
-        seekParams.leftMargin = dpToPx(context, 8);
-        seekParams.rightMargin = dpToPx(context, 8);
+        seekParams.leftMargin = dpToPx(context, 12);
+        seekParams.rightMargin = dpToPx(context, 12);
         seekBar.setLayoutParams(seekParams);
         
-        seekBar.setMax(90); // 1.0到10.0，步长0.1，共90步
-        seekBar.setProgress((int)((timeScale - 1.0f) * 10));
+        // 设置滑条范围：1-10，共10个整数档位
+        seekBar.setMax(9); // 最大值 = 10 - 1 = 9
+        seekBar.setProgress(timeScale - 1); // 初始进度 = 当前值 - 1
         
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser) {
-                    timeScale = 1.0f + (progress / 10.0f);
-                    speedText.setText("Speed: " + String.format("%.2f", timeScale) + "x");
-                    setTimeScale(timeScale);
+                    // 进度直接对应1-10的整数
+                    timeScale = progress + 1;
+                    speedText.setText("Speed: " + timeScale + "x");
+                    setTimeScale((float) timeScale);
                 }
             }
             
@@ -310,7 +316,7 @@ public class Main implements IXposedHookLoadPackage {
         TextView maxLabel = new TextView(context);
         maxLabel.setText("10x");
         maxLabel.setTextColor(0xFFCCCCCC);
-        maxLabel.setTextSize(12);
+        maxLabel.setTextSize(14);
         
         LinearLayout.LayoutParams maxParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -322,24 +328,113 @@ public class Main implements IXposedHookLoadPackage {
         sliderContainer.addView(seekBar);
         sliderContainer.addView(maxLabel);
         parent.addView(sliderContainer);
+        
+        // 添加当前值显示
+        final TextView currentValueText = new TextView(context);
+        currentValueText.setText("Current: " + timeScale + "x");
+        currentValueText.setTextColor(0xFF4CAF50);
+        currentValueText.setTextSize(16);
+        currentValueText.setGravity(Gravity.CENTER);
+        
+        LinearLayout.LayoutParams currentParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        currentParams.bottomMargin = dpToPx(context, 24);
+        currentValueText.setLayoutParams(currentParams);
+        parent.addView(currentValueText);
+        
+        // 保存引用以便预设按钮使用
+        final SeekBar finalSeekBar = seekBar;
+        
+        // 添加预设按钮区域
+        LinearLayout presetContainer = new LinearLayout(context);
+        presetContainer.setOrientation(LinearLayout.HORIZONTAL);
+        
+        LinearLayout.LayoutParams presetParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        presetParams.bottomMargin = dpToPx(context, 16);
+        presetContainer.setLayoutParams(presetParams);
+        
+        // 添加预设按钮
+        String[] presetValues = {"1x", "2x", "5x", "10x"};
+        int[] presetScales = {1, 2, 5, 10};
+        
+        for (int i = 0; i < presetValues.length; i++) {
+            TextView presetButton = new TextView(context);
+            final int presetScale = presetScales[i];
+            
+            presetButton.setText(presetValues[i]);
+            presetButton.setTextColor(Color.WHITE);
+            presetButton.setTextSize(14);
+            presetButton.setGravity(Gravity.CENTER);
+            presetButton.setBackgroundColor(0xFF4CAF50);
+            presetButton.setPadding(
+                dpToPx(context, 12),
+                dpToPx(context, 8),
+                dpToPx(context, 12),
+                dpToPx(context, 8)
+            );
+            
+            LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1.0f
+            );
+            if (i > 0) {
+                buttonParams.leftMargin = dpToPx(context, 8);
+            }
+            presetButton.setLayoutParams(buttonParams);
+            
+            presetButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    timeScale = presetScale;
+                    // 更新滑条进度
+                    finalSeekBar.setProgress(timeScale - 1);
+                    // 更新显示文本
+                    speedText.setText("Speed: " + timeScale + "x");
+                    currentValueText.setText("Current: " + timeScale + "x");
+                    // 设置时间倍率
+                    setTimeScale((float) timeScale);
+                    XposedBridge.log("Yuri: Speed set to " + timeScale + "x");
+                }
+            });
+            
+            presetContainer.addView(presetButton);
+        }
+        
+        parent.addView(presetContainer);
     }
     
     private void createAdditionalControls(Context context, LinearLayout parent) {
-        // 这里可以添加其他控制项
-        // 例如：开关、按钮等
+        // 添加分隔线
+        View divider = new View(context);
+        divider.setBackgroundColor(0x55666666);
         
-        // 示例：添加一个说明文本
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            dpToPx(context, 1)
+        );
+        dividerParams.bottomMargin = dpToPx(context, 16);
+        divider.setLayoutParams(dividerParams);
+        parent.addView(divider);
+        
+        // 添加说明文本
         TextView infoText = new TextView(context);
-        infoText.setText("Adjust game speed using the slider above");
+        infoText.setText("Speed Hack Control\n\nAdjust the game speed using the slider above. " +
+                        "Only integer values from 1 to 10 are accepted.");
         infoText.setTextColor(0xFFCCCCCC);
-        infoText.setTextSize(12);
+        infoText.setTextSize(14);
         infoText.setGravity(Gravity.CENTER);
+        infoText.setLineSpacing(dpToPx(context, 4), 1.0f);
         
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        infoParams.topMargin = dpToPx(context, 8);
         infoParams.bottomMargin = dpToPx(context, 16);
         infoText.setLayoutParams(infoParams);
         
