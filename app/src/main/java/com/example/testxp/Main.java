@@ -16,6 +16,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -28,9 +29,11 @@ public class Main implements IXposedHookLoadPackage {
         System.loadLibrary("Yuri");
     }
     
+    // 添加一个新的native方法来强制更新时间倍率
     public static native void setTimeScale(float scale);
+    public static native void updateTimeScaleImmediately();
     
-    private int timeScale = 1; // 设为整数
+    private int timeScale = 1;
     private View floatingView = null;
     private FrameLayout hostDecorView = null;
     private int screenWidth = 0;
@@ -118,7 +121,7 @@ public class Main implements IXposedHookLoadPackage {
         try {
             // 计算悬浮窗尺寸 - 横屏宽度的1/3，高度的1/2
             final int floatingWidth = screenWidth / 3;
-            final int floatingHeight = screenHeight / 2; // 增加为屏幕高度的一半
+            final int floatingHeight = screenHeight / 2;
             
             // 创建主容器
             LinearLayout mainLayout = new LinearLayout(context);
@@ -232,7 +235,7 @@ public class Main implements IXposedHookLoadPackage {
         // 添加时间倍率控制
         createTimeScaleControl(context, contentLayout);
         
-        // 添加其他控制项（可以根据需要扩展）
+        // 添加其他控制项
         createAdditionalControls(context, contentLayout);
         
         parent.addView(scrollView);
@@ -301,7 +304,10 @@ public class Main implements IXposedHookLoadPackage {
                     // 进度直接对应1-10的整数
                     timeScale = progress + 1;
                     speedText.setText("Speed: " + timeScale + "x");
-                    setTimeScale((float) timeScale);
+                    currentValueText.setText("Current: " + timeScale + "x");
+                    
+                    // 立即应用时间倍率修改
+                    applyTimeScaleImmediately();
                 }
             }
             
@@ -397,8 +403,8 @@ public class Main implements IXposedHookLoadPackage {
                     // 更新显示文本
                     speedText.setText("Speed: " + timeScale + "x");
                     currentValueText.setText("Current: " + timeScale + "x");
-                    // 设置时间倍率
-                    setTimeScale((float) timeScale);
+                    // 立即应用时间倍率修改
+                    applyTimeScaleImmediately();
                     XposedBridge.log("Yuri: Speed set to " + timeScale + "x");
                 }
             });
@@ -425,7 +431,8 @@ public class Main implements IXposedHookLoadPackage {
         // 添加说明文本
         TextView infoText = new TextView(context);
         infoText.setText("Speed Hack Control\n\nAdjust the game speed using the slider above. " +
-                        "Only integer values from 1 to 10 are accepted.");
+                        "Only integer values from 1 to 10 are accepted.\n\n" +
+                        "Changes take effect immediately.");
         infoText.setTextColor(0xFFCCCCCC);
         infoText.setTextSize(14);
         infoText.setGravity(Gravity.CENTER);
@@ -439,6 +446,21 @@ public class Main implements IXposedHookLoadPackage {
         infoText.setLayoutParams(infoParams);
         
         parent.addView(infoText);
+    }
+    
+    // 立即应用时间倍率修改
+    private void applyTimeScaleImmediately() {
+        try {
+            // 设置新的时间倍率
+            setTimeScale((float) timeScale);
+            
+            // 强制立即更新
+            updateTimeScaleImmediately();
+            
+            XposedBridge.log("Yuri: Time scale applied immediately - " + timeScale + "x");
+        } catch (Exception e) {
+            XposedBridge.log("Yuri Error applying time scale: " + e.getMessage());
+        }
     }
     
     private void setupTouchListener(final View view, final FrameLayout.LayoutParams params) {
