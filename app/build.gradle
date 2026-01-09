@@ -1,6 +1,7 @@
+
 plugins {
     id 'com.android.application'
-    // id 'kotlin-android'
+  
 }
 
 android {
@@ -39,8 +40,4 @@ android {
 
 dependencies {
     compileOnly 'de.robv.android.xposed:api:82'
-    compileOnly 'de.robv.android.xposed:api:82:sources'
-    // implementation 'androidx.appcompat:appcompat:1.4.2'
-    // implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    // implementation 'com.google.android.material:material:1.6.1'
 }
