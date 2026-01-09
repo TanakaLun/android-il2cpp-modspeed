@@ -10,21 +10,24 @@ message("Build type: ${CMAKE_BUILD_TYPE}")
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(LINKER_FLAGS "-ffixed-x18 -Wl,--hash-style=both -w -s -Wno-error=format-security -fvisibility=hidden -fpermissive -fexceptions -Wl,-Bsymbolic")
+set(COMMON_FLAGS "-ffixed-x18 -fdata-sections -ffunction-sections -fvisibility=hidden")
+set(C_FLAGS "${COMMON_FLAGS} -Werror=format")
+set(CXX_FLAGS "${COMMON_FLAGS} -fno-exceptions -fno-rtti -Wno-error=format-security -Werror -Wno-error=c++11-narrowing -fpermissive -Wall")
 
-set(C_FLAGS "-Werror=format -fdata-sections -ffunction-sections")
-
-set(CXX_FLAGS "${CXX_FLAGS} -fno-exceptions -fno-rtti -w -s -Wno-error=format-security -fvisibility=hidden -Werror -Wno-error=c++11-narrowing -fpermissive -Wall -fexceptions")
+set(LINKER_FLAGS "-Wl,--hash-style=both -Wl,-Bsymbolic")
 
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(C_FLAGS "${C_FLAGS} -O2 -fvisibility=hidden -fvisibility-inlines-hidden")
-    set(LINKER_FLAGS "${LINKER_FLAGS} -Wl,-exclude-libs,ALL -Wl,--gc-sections -Wl,--strip-all")
+    set(OPTIMIZATION_FLAGS "-O2 -fvisibility-inlines-hidden")
+    set(C_FLAGS "${C_FLAGS} ${OPTIMIZATION_FLAGS}")
+    set(CXX_FLAGS "${CXX_FLAGS} ${OPTIMIZATION_FLAGS}")
+    set(LINKER_FLAGS "${LINKER_FLAGS} -Wl,-exclude-libs,ALL -Wl,--gc-sections -s")
 else ()
     set(C_FLAGS "${C_FLAGS} -O0")
+    set(CXX_FLAGS "${CXX_FLAGS} -O0")
 endif ()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${C_FLAGS} ${CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LINKER_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
 
@@ -44,5 +47,7 @@ target_link_libraries(${PROJECT_NAME} log android ${DOBBY_LIB})
 
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_STRIP} --strip-all --remove-section=.comment "./lib${PROJECT_NAME}.so")
+            COMMAND ${CMAKE_STRIP} --strip-all --remove-section=.comment "$<TARGET_FILE:${PROJECT_NAME}>"
+            COMMENT "Stripping symbols from ${PROJECT_NAME}"
+            VERBATIM)
 endif ()

@@ -4,12 +4,13 @@ on:
   push:
   workflow_dispatch:
     inputs:
-      build_type:
+      build_all:
         type: choice
         description: '选择编译类型'
         required: true
-        default: 'debug'
+        default: 'both'
         options:
+          - 'both'
           - 'debug'
           - 'release'
 
@@ -18,80 +19,108 @@ permissions:
   actions: read
 
 jobs:
-  build:
+  build-debug:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.build_all == 'both' || github.event.inputs.build_all == 'debug'
     outputs:
       build_timestamp: ${{ steps.build_info.outputs.build_timestamp }}
-      build_type: ${{ steps.set_build_type.outputs.build_type }}
     env:
       NATIVE_TARGET: "arm64-v8a"
+      BUILD_TYPE: "debug"
     steps:
-        - name: ⬇️ Checkout Repository
-          uses: actions/checkout@v4
-        
-        - name: 🔧 设置构建类型
-          id: set_build_type
-          run: |
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              echo "build_type=${{ github.event.inputs.build_type }}" >> $GITHUB_OUTPUT
-            else
-              echo "build_type=debug" >> $GITHUB_OUTPUT
-            fi
-            echo "构建类型: ${{ steps.set_build_type.outputs.build_type }}"
-    
-        - name: 🛠️ Set up Java
-          uses: actions/setup-java@v4
-          with:
-            distribution: 'temurin'
-            java-version: '17'
-    
-        - name: 💻 Set up Android SDK and NDK
-          uses: android-actions/setup-android@v3
-          with:
-            ndk: '28.2.13676358'
-            build-tools: '35.0.0'
-    
-        - name: ⚙️ Grant execute permission to gradlew
-          run: chmod +x gradlew
-    
-        - name: 🏗️ Build APK
-          run: |
-            if [ "${{ steps.set_build_type.outputs.build_type }}" = "release" ]; then
-              ./gradlew assembleRelease
-            else
-              ./gradlew assembleDebug
-            fi
-    
-        - name: 📦 Find APK file and rename
-          id: build_info
-          env:
-            COMMIT_ID: ${{ github.sha }}
-            BUILD_TYPE: ${{ steps.set_build_type.outputs.build_type }}
-          run: |
-            BUILD_TIMESTAMP=$(date +%s)
-            echo "build_timestamp=$BUILD_TIMESTAMP" >> $GITHUB_OUTPUT
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🛠️ Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: 💻 Set up Android SDK and NDK
+        uses: android-actions/setup-android@v3
+      
+      - name: ⚙️ Grant execute permission to gradlew
+        run: chmod +x gradlew
+      
+      - name: 🏗️ Build Debug APK
+        run: ./gradlew assembleDebug
+      
+      - name: 📦 Find APK file and rename
+        id: build_info
+        env:
+          COMMIT_ID: ${{ github.sha }}
+        run: |
+          BUILD_TIMESTAMP=$(date +%s)
+          echo "build_timestamp=$BUILD_TIMESTAMP" >> $GITHUB_OUTPUT
 
-            # 根据构建类型选择正确的APK目录
-            if [ "$BUILD_TYPE" = "release" ]; then
-              APK_DIR="release"
-            else
-              APK_DIR="debug"
-            fi
+          ORIGINAL_APK_PATH=$(find ${{ github.workspace }}/app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          COMMIT_ID_SHORT=${COMMIT_ID::7}
+          NEW_APK_NAME="SpeedModer-${{ env.NATIVE_TARGET }}-${{ env.BUILD_TYPE }}-${COMMIT_ID_SHORT}.apk"
+          
+          # 重命名 APK 文件
+          NEW_APK_DIR=$(dirname "$ORIGINAL_APK_PATH")
+          NEW_APK_PATH="$NEW_APK_DIR/$NEW_APK_NAME"
+          mv "$ORIGINAL_APK_PATH" "$NEW_APK_PATH"
+          echo "apk_path=$NEW_APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found and renamed APK to: $NEW_APK_PATH"
+      
+      - name: 📤 Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpeedModer-debug
+          path: ${{ steps.build_info.outputs.apk_path }}
+          retention-days: 7
 
-            ORIGINAL_APK_PATH=$(find ${{ github.workspace }}/app/build/outputs/apk/$APK_DIR/ -name "*.apk" | head -n 1)
-            COMMIT_ID_SHORT=${COMMIT_ID::7}
-            NEW_APK_NAME="RikoNyamu-${{ env.NATIVE_TARGET }}-${BUILD_TYPE}-${COMMIT_ID_SHORT}.apk"
-            
-            # 重命名 APK 文件
-            NEW_APK_DIR=$(dirname "$ORIGINAL_APK_PATH")
-            NEW_APK_PATH="$NEW_APK_DIR/$NEW_APK_NAME"
-            mv "$ORIGINAL_APK_PATH" "$NEW_APK_PATH"
-            echo "apk_path=$NEW_APK_PATH" >> $GITHUB_OUTPUT
-            echo "Found and renamed APK to: $NEW_APK_PATH"
-    
-        - name: 📤 Upload APK Artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: RikoNyamu-${{ steps.set_build_type.outputs.build_type }}
-            path: ${{ steps.build_info.outputs.apk_path }}
-            retention-days: 7
+  build-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.build_all == 'both' || github.event.inputs.build_all == 'release'
+    outputs:
+      build_timestamp: ${{ steps.build_info.outputs.build_timestamp }}
+    env:
+      NATIVE_TARGET: "arm64-v8a"
+      BUILD_TYPE: "release"
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 🛠️ Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: 💻 Set up Android SDK and NDK
+        uses: android-actions/setup-android@v3
+      
+      - name: ⚙️ Grant execute permission to gradlew
+        run: chmod +x gradlew
+      
+      - name: 🏗️ Build Release APK
+        run: ./gradlew assembleRelease
+      
+      - name: 📦 Find APK file and rename
+        id: build_info
+        env:
+          COMMIT_ID: ${{ github.sha }}
+        run: |
+          BUILD_TIMESTAMP=$(date +%s)
+          echo "build_timestamp=$BUILD_TIMESTAMP" >> $GITHUB_OUTPUT
+
+          ORIGINAL_APK_PATH=$(find ${{ github.workspace }}/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          COMMIT_ID_SHORT=${COMMIT_ID::7}
+          NEW_APK_NAME="SpeedModer-${{ env.NATIVE_TARGET }}-${{ env.BUILD_TYPE }}-${COMMIT_ID_SHORT}.apk"
+          
+          # 重命名 APK 文件
+          NEW_APK_DIR=$(dirname "$ORIGINAL_APK_PATH")
+          NEW_APK_PATH="$NEW_APK_DIR/$NEW_APK_NAME"
+          mv "$ORIGINAL_APK_PATH" "$NEW_APK_PATH"
+          echo "apk_path=$NEW_APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found and renamed APK to: $NEW_APK_PATH"
+      
+      - name: 📤 Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpeedModer-release
+          path: ${{ steps.build_info.outputs.apk_path }}
+          retention-days: 7
